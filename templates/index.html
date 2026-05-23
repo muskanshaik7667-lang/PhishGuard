@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PhishGuard — Email Threat Classifier</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #04060a;
+    --panel: #0b0f18;
+    --border: #1a2236;
+    --accent: #00ff88;
+    --accent2: #ff3c5c;
+    --accent3: #3d8bff;
+    --text: #e8edf5;
+    --muted: #5a6880;
+    --safe: #00ff88;
+    --danger: #ff3c5c;
+    --warn: #ffb800;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Glow orbs */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.12;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .orb1 { width: 600px; height: 600px; background: var(--accent); top: -200px; left: -200px; }
+  .orb2 { width: 500px; height: 500px; background: var(--accent2); bottom: -150px; right: -150px; }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .logo-icon {
+    width: 48px; height: 48px;
+    background: linear-gradient(135deg, var(--accent), var(--accent3));
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem;
+  }
+
+  .logo h1 {
+    font-size: 1.8rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+
+  .logo h1 span { color: var(--accent); }
+
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(0,255,136,0.08);
+    border: 1px solid rgba(0,255,136,0.2);
+    padding: 0.5rem 1rem;
+    border-radius: 100px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--accent);
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+
+  /* Stats Grid */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+
+  .stat-card:hover { border-color: var(--accent); }
+
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+  }
+
+  .stat-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 0.75rem;
+  }
+
+  .stat-value {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 0.25rem;
+  }
+
+  .stat-sub {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* Main layout */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 1.5rem;
+  }
+
+  /* Classifier Panel */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2rem;
+  }
+
+  .panel-title {
+    font-size: 0.7rem;
+    font-family: 'Space Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .panel-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .email-input-wrapper {
+    position: relative;
+    margin-bottom: 1rem;
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 200px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.82rem;
+    line-height: 1.7;
+    padding: 1.25rem;
+    resize: vertical;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    outline: none;
+  }
+
+  textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,255,136,0.08);
+  }
+
+  textarea::placeholder { color: var(--muted); }
+
+  .btn-row { display: flex; gap: 0.75rem; }
+
+  .btn-analyze {
+    flex: 1;
+    padding: 1rem 2rem;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    letter-spacing: 0.5px;
+  }
+
+  .btn-analyze:hover {
+    background: #00ffaa;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(0,255,136,0.25);
+  }
+
+  .btn-analyze:active { transform: translateY(0); }
+
+  .btn-clear {
+    padding: 1rem 1.5rem;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-clear:hover { border-color: var(--muted); color: var(--text); }
+
+  /* Quick Test Emails */
+  .quick-tests {
+    margin-top: 1.5rem;
+  }
+
+  .quick-tests-title {
+    font-size: 0.65rem;
+    font-family: 'Space Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 0.75rem;
+  }
+
+  .quick-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .quick-btn {
+    padding: 0.4rem 0.9rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-family: 'Space Mono', monospace;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+  }
+
+  .quick-btn.phish {
+    background: rgba(255,60,92,0.12);
+    color: var(--danger);
+    border: 1px solid rgba(255,60,92,0.2);
+  }
+
+  .quick-btn.phish:hover { background: rgba(255,60,92,0.2); }
+
+  .quick-btn.safe {
+    background: rgba(0,255,136,0.08);
+    color: var(--safe);
+    border: 1px solid rgba(0,255,136,0.15);
+  }
+
+  .quick-btn.safe:hover { background: rgba(0,255,136,0.15); }
+
+  /* Result panel */
+  .result-panel {
+    display: none;
+    margin-top: 1.5rem;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    animation: slideIn 0.4s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-header {
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .result-header.phishing {
+    background: rgba(255,60,92,0.1);
+    border-bottom: 1px solid rgba(255,60,92,0.2);
+  }
+
+  .result-header.safe {
+    background: rgba(0,255,136,0.08);
+    border-bottom: 1px solid rgba(0,255,136,0.15);
+  }
+
+  .result-label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.2rem;
+    font-weight: 800;
+  }
+
+  .result-icon { font-size: 1.5rem; }
+
+  .result-label.phishing { color: var(--danger); }
+  .result-label.safe { color: var(--safe); }
+
+  .confidence-badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.8rem;
+    padding: 0.3rem 0.8rem;
+    border-radius: 100px;
+  }
+
+  .confidence-badge.phishing { background: rgba(255,60,92,0.15); color: var(--danger); }
+  .confidence-badge.safe { background: rgba(0,255,136,0.1); color: var(--safe); }
+
+  .prob-bars { padding: 1.25rem 1.5rem; }
+
+  .prob-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .prob-row:last-child { margin-bottom: 0; }
+
+  .prob-label {
+    width: 80px;
+    font-size: 0.75rem;
+    font-family: 'Space Mono', monospace;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .prob-track {
+    flex: 1;
+    height: 8px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 100px;
+    overflow: hidden;
+  }
+
+  .prob-fill {
+    height: 100%;
+    border-radius: 100px;
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .prob-fill.phishing { background: var(--danger); }
+  .prob-fill.safe { background: var(--safe); }
+
+  .prob-pct {
+    width: 45px;
+    text-align: right;
+    font-size: 0.8rem;
+    font-family: 'Space Mono', monospace;
+    color: var(--text);
+    flex-shrink: 0;
+  }
+
+  .indicators-section { padding: 0 1.5rem 1.5rem; }
+
+  .ind-title {
+    font-size: 0.65rem;
+    font-family: 'Space Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 0.75rem;
+  }
+
+  .indicator-list { display: flex; flex-direction: column; gap: 0.5rem; }
+
+  .indicator-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.9rem;
+    background: rgba(255,60,92,0.06);
+    border: 1px solid rgba(255,60,92,0.15);
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-family: 'Space Mono', monospace;
+    color: var(--danger);
+  }
+
+  .indicator-item.safe-ind {
+    background: rgba(0,255,136,0.05);
+    border-color: rgba(0,255,136,0.1);
+    color: var(--safe);
+  }
+
+  /* Right sidebar */
+  .sidebar { display: flex; flex-direction: column; gap: 1.5rem; }
+
+  /* Confusion Matrix */
+  .cm-grid {
+    display: grid;
+    grid-template-columns: auto 1fr 1fr;
+    gap: 0;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  .cm-header {
+    padding: 0.6rem;
+    text-align: center;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    background: rgba(255,255,255,0.02);
+  }
+
+  .cm-row-label {
+    padding: 0.6rem 0.75rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    background: rgba(255,255,255,0.02);
+    display: flex;
+    align-items: center;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    justify-content: center;
+    letter-spacing: 1px;
+    border-right: 1px solid var(--border);
+  }
+
+  .cm-cell {
+    padding: 1.25rem;
+    text-align: center;
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cm-value { font-size: 1.8rem; font-weight: 800; }
+  .cm-sublabel { font-size: 0.6rem; font-family: 'Space Mono', monospace; color: var(--muted); margin-top: 0.25rem; }
+
+  .cm-tn { background: rgba(0,255,136,0.06); }
+  .cm-tn .cm-value { color: var(--safe); }
+  .cm-tp { background: rgba(0,255,136,0.06); }
+  .cm-tp .cm-value { color: var(--safe); }
+  .cm-fp { background: rgba(255,60,92,0.06); }
+  .cm-fp .cm-value { color: var(--danger); }
+  .cm-fn { background: rgba(255,60,92,0.06); }
+  .cm-fn .cm-value { color: var(--danger); }
+
+  /* Metrics */
+  .metrics-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+  .metric-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+
+  .metric-name {
+    font-size: 0.78rem;
+    font-family: 'Space Mono', monospace;
+    color: var(--muted);
+  }
+
+  .metric-val {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* Loading */
+  .analyzing {
+    display: none;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 0;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .footer {
+    text-align: center;
+    padding: 3rem 0 2rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    margin-top: 3rem;
+  }
+
+  @media (max-width: 900px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .main-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<div class="container">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🛡️</div>
+      <div>
+        <h1>Phish<span>Guard</span></h1>
+        <div style="font-size:0.7rem;color:var(--muted);font-family:'Space Mono',monospace;margin-top:2px;">ML-powered email threat classifier</div>
+      </div>
+    </div>
+    <div class="status-badge">
+      <div class="status-dot"></div>
+      MODEL ACTIVE · RandomForest + TF-IDF
+    </div>
+  </header>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Model Accuracy</div>
+      <div class="stat-value">{{ metrics.accuracy }}%</div>
+      <div class="stat-sub">on test split</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Precision</div>
+      <div class="stat-value" style="color:var(--accent3)">{{ metrics.precision }}%</div>
+      <div class="stat-sub">phishing class</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Recall</div>
+      <div class="stat-value" style="color:var(--warn)">{{ metrics.recall }}%</div>
+      <div class="stat-sub">phishing class</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">F1 Score</div>
+      <div class="stat-value" style="color:var(--accent2)">{{ metrics.f1 }}%</div>
+      <div class="stat-sub">phishing class</div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main-grid">
+    <!-- Classifier -->
+    <div>
+      <div class="panel">
+        <div class="panel-title">Email Analyzer</div>
+
+        <div class="email-input-wrapper">
+          <textarea id="emailInput" placeholder="Paste an email here to classify it as Phishing or Safe…&#10;&#10;Example: 'URGENT: Your account has been suspended! Click here to verify...'"></textarea>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn-analyze" onclick="analyzeEmail()">
+            <span>🔍</span> Analyze Email
+          </button>
+          <button class="btn-clear" onclick="clearAll()">Clear</button>
+        </div>
+
+        <div class="analyzing" id="analyzingMsg">
+          <div class="spinner"></div>
+          Running feature extraction and classification…
+        </div>
+
+        <div class="result-panel" id="resultPanel">
+          <div class="result-header" id="resultHeader">
+            <div class="result-label" id="resultLabel">
+              <span class="result-icon" id="resultIcon"></span>
+              <span id="resultText"></span>
+            </div>
+            <span class="confidence-badge" id="confidenceBadge"></span>
+          </div>
+          <div class="prob-bars">
+            <div class="prob-row">
+              <div class="prob-label">Phishing</div>
+              <div class="prob-track"><div class="prob-fill phishing" id="phishBar" style="width:0%"></div></div>
+              <div class="prob-pct" id="phishPct">0%</div>
+            </div>
+            <div class="prob-row">
+              <div class="prob-label">Safe</div>
+              <div class="prob-track"><div class="prob-fill safe" id="safeBar" style="width:0%"></div></div>
+              <div class="prob-pct" id="safePct">0%</div>
+            </div>
+          </div>
+          <div class="indicators-section" id="indicatorsSection"></div>
+        </div>
+
+        <!-- Quick Tests -->
+        <div class="quick-tests">
+          <div class="quick-tests-title">Quick Test Samples</div>
+          <div class="quick-btns">
+            <button class="quick-btn phish" onclick="loadSample('phish1')">🎣 Lottery Scam</button>
+            <button class="quick-btn phish" onclick="loadSample('phish2')">🏦 Bank Phish</button>
+            <button class="quick-btn phish" onclick="loadSample('phish3')">⚠️ Account Suspend</button>
+            <button class="quick-btn safe" onclick="loadSample('safe1')">✅ Work Email</button>
+            <button class="quick-btn safe" onclick="loadSample('safe2')">📦 Order Confirm</button>
+            <button class="quick-btn safe" onclick="loadSample('safe3')">📅 Meeting Invite</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <!-- Confusion Matrix -->
+      <div class="panel">
+        <div class="panel-title">Confusion Matrix</div>
+        <div style="margin-bottom:0.5rem">
+          <div style="display:flex;justify-content:flex-end;gap:0;margin-bottom:0.25rem">
+            <div style="width:50%;text-align:center;font-size:0.6rem;font-family:'Space Mono',monospace;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Predicted</div>
+          </div>
+          <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:0;border-radius:12px;overflow:hidden;border:1px solid var(--border)">
+            <div style="background:rgba(255,255,255,0.02);border-right:1px solid var(--border);border-bottom:1px solid var(--border)"></div>
+            <div class="cm-header" style="border-bottom:1px solid var(--border);border-right:1px solid var(--border)">Safe</div>
+            <div class="cm-header" style="border-bottom:1px solid var(--border)">Phishing</div>
+
+            <div style="display:flex;align-items:center;justify-content:center;padding:0.5rem;background:rgba(255,255,255,0.02);border-right:1px solid var(--border);writing-mode:vertical-rl;transform:rotate(180deg);font-size:0.6rem;font-family:'Space Mono',monospace;color:var(--muted);text-transform:uppercase;letter-spacing:1px">
+              Actual Safe
+            </div>
+            <div class="cm-cell cm-tn" style="border-right:1px solid var(--border);border-bottom:1px solid var(--border)">
+              <div class="cm-value">{{ metrics.tn }}</div>
+              <div class="cm-sublabel">TN</div>
+            </div>
+            <div class="cm-cell cm-fp" style="border-bottom:1px solid var(--border)">
+              <div class="cm-value">{{ metrics.fp }}</div>
+              <div class="cm-sublabel">FP</div>
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:center;padding:0.5rem;background:rgba(255,255,255,0.02);border-right:1px solid var(--border);writing-mode:vertical-rl;transform:rotate(180deg);font-size:0.6rem;font-family:'Space Mono',monospace;color:var(--muted);text-transform:uppercase;letter-spacing:1px">
+              Actual Phish
+            </div>
+            <div class="cm-cell cm-fn" style="border-right:1px solid var(--border)">
+              <div class="cm-value">{{ metrics.fn }}</div>
+              <div class="cm-sublabel">FN</div>
+            </div>
+            <div class="cm-cell cm-tp">
+              <div class="cm-value">{{ metrics.tp }}</div>
+              <div class="cm-sublabel">TP</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Model Metrics -->
+      <div class="panel">
+        <div class="panel-title">Model Details</div>
+        <div class="metrics-list">
+          <div c
