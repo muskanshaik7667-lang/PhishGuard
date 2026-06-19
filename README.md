@@ -25,12 +25,12 @@ View probability distribution
 Quick Test Samples
 Use the quick test buttons to try pre-loaded samples:
 
-🎣 Lottery Scam - Example phishing email
-🏦 Bank Phish - Banking fraud attempt
-⚠️ Account Suspend - Account verification scam
-✅ Work Email - Legitimate business email
-📦 Order Confirm - Order confirmation email
-📅 Meeting Invite - Calendar invitation email
+- 🎣 Lottery Scam - Example phishing email
+- 🏦 Bank Phish - Banking fraud attempt
+- ⚠️ Account Suspend - Account verification scam
+- ✅ Work Email - Legitimate business email
+- 📦 Order Confirm - Order confirmation email
+- 📅 Meeting Invite - Calendar invitation email
 
 🛠️ Technical Stack
 Backend: Python, Flask
@@ -38,7 +38,7 @@ Machine Learning: scikit-learn, NumPy, SciPy
 Frontend: HTML5, CSS3, Vanilla JavaScript
 Deployment Ready: Compatible with standard Python hosting platforms
 🎯 Use Cases
-Email Security Gateway: Integrate into email systems for automatic phishing detection
-Security Awareness Training: Use as a tool to educate users about phishing threats
-Cybersecurity Research: Analyze phishing patterns and threat evolution
-Security Auditing: Evaluate email security posture of organizations
+- Email Security Gateway: Integrate into email systems for automatic phishing detection
+- Security Awareness Training: Use as a tool to educate users about phishing threats
+- Cybersecurity Research: Analyze phishing patterns and threat evolution
+- Security Auditing: Evaluate email security posture of organizations
